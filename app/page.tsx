@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import HeroSlider from "@/components/HeroSlider";
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 export default function HomePage() {
@@ -8,26 +9,8 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="hero">
-        <div className="container">
-          <div className="hero-content">
-            <h1 className="hero-title fade-in delay-1">
-              Responsible Mineral Development
-            </h1>
-
-            <p className="hero-subtitle fade-in delay-2">
-              Delivering sustainable extraction and mineral development across
-              Southern Africa through disciplined operations, technology, and
-              environmental stewardship.
-            </p>
-
-            <a href="#" className="btn fade-in delay-3">
-              Learn More
-            </a>
-          </div>
-        </div>
-      </section>
+      {/* Hero Slider */}
+      <HeroSlider />
 
       {/* Company Profile */}
       <section className="section gray">
