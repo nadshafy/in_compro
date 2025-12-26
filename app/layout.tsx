@@ -1,8 +1,24 @@
-import "./globals.css";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Innocent Resources",
-  description: "Responsible mineral development across Southern Africa",
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://innocentresources.com"),
+  title: {
+    default: "Innocent Resources Corporation Limited",
+    template: "%s | Innocent Resources",
+  },
+  description:
+    "Innocent Resources Corporation Limited is an international mining and mineral development company operating across Southern Africa.",
+  openGraph: {
+    type: "website",
+    siteName: "Innocent Resources",
+    title: "Innocent Resources Corporation Limited",
+    description:
+      "Responsible mineral development across Namibia, Botswana, and South Africa.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -12,9 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

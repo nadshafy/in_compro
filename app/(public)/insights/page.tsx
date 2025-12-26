@@ -1,19 +1,23 @@
-import InsightsClient from "./InsightsClient";
+import { Metadata } from "next";
 
-export default async function Page({
+export function generateMetadata({
   searchParams,
 }: {
-  searchParams?: { page?: string; category?: string };
-}) {
-  const page = Number(searchParams?.page ?? 1);
-  const category = searchParams?.category ?? "";
+  searchParams?: { category?: string };
+}): Metadata {
+  const category = searchParams?.category;
 
-  const res = await fetch(
-    `${process.env.NEXTAUTH_URL}/api/insights?page=${page}&category=${category}`,
-    { cache: "no-store" }
-  );
+  const title = category
+    ? `${category.replace("-", " ")} Insights`
+    : "Insights & News";
 
-  const json = await res.json();
+  return {
+    title,
+    description:
+      "Latest press releases, corporate news, and insights from Innocent Resources Corporation Limited.",
+  };
+}
 
-  return <InsightsClient data={json.items} />;
+export default function InsightsPage() {
+  return null;
 }

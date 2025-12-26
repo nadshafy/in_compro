@@ -1,119 +1,182 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 type Category = "PRESS_RELEASE" | "BLOG" | "NEWS" | "UPDATE";
 type Status = "DRAFT" | "PUBLISHED";
 
-export default function EditInsightPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+type Insight = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: Category;
+  status: Status;
+  coverImage: string | null;
+};
 
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [excerpt, setExcerpt] = useState("");
-  const [content, setContent] = useState("");
-  const [category, setCategory] = useState<Category>("PRESS_RELEASE");
-  const [status, setStatus] = useState<Status>("DRAFT");
+export default function EditInsightPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
-  function slugify(v: string) {
-    return v
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  }
+  const [data, setData] = useState<Insight | null>(null);
 
   useEffect(() => {
-    fetch(`/api/insights/${id}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        setTitle(d.title);
-        setSlug(d.slug);
-        setExcerpt(d.excerpt || "");
-        setContent(d.content || "");
-        setCategory(d.category);
-        setStatus(d.status);
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
+    (async () => {
+      setError("");
+      setLoading(true);
+
+      try {
+        const res = await fetch(`/api/insights/${params.id}`, { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          setError(json?.error || "Failed to load insight");
+          setData(null);
+          return;
+        }
+
+        setData(json);
+      } catch {
+        setError("Failed to load insight");
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [params.id]);
+
+  async function handleUpload(file: File) {
+    setError("");
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(json?.error || "Upload failed");
+        return;
+      }
+
+      setData((prev) => (prev ? { ...prev, coverImage: json.url } : prev));
+    } catch {
+      setError("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
+    if (!data) return;
+
     setError("");
+    setSaving(true);
 
-    const res = await fetch(`/api/insights/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        slug,
-        excerpt,
-        content,
-        category,
-        status,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/insights/${params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title,
+          slug: data.slug,
+          excerpt: data.excerpt,
+          content: data.content,
+          category: data.category,
+          status: data.status,
+          coverImage: data.coverImage,
+        }),
+      });
 
-    if (!res.ok) {
-      const j = await res.json();
-      setError(j.error || "Failed to update insight");
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setError(json?.error || "Failed to update insight");
+        return;
+      }
+
+      router.push("/admin/insights");
+    } catch {
+      setError("Failed to update insight");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    router.push("/admin/insights");
   }
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-gray-500">Loading…</div>
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        <div className="text-sm text-gray-600">Loading…</div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        <div className="text-sm text-red-700">{error || "Not found"}</div>
+      </main>
     );
   }
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-12">
-      <h1 className="text-2xl font-semibold mb-6">Edit Insight</h1>
+      <header className="mb-8">
+        <h1 className="text-2xl font-semibold">Edit Insight</h1>
+        <p className="text-sm text-gray-600 mt-1">Update existing post</p>
+      </header>
 
       {error && (
-        <div className="mb-4 rounded bg-red-50 text-red-700 px-4 py-2 text-sm">
+        <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white border rounded-lg p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-8 bg-white border border-gray-200 rounded-lg p-8"
+      >
         <div>
           <label className="block text-sm font-medium mb-1">Title</label>
           <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setSlug(slugify(e.target.value));
-            }}
-            className="w-full border rounded px-3 py-2 text-sm"
+            value={data.title}
+            onChange={(e) => setData({ ...data, title: e.target.value })}
+            required
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900/10"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Slug</label>
           <input
-            value={slug}
-            onChange={(e) => setSlug(slugify(e.target.value))}
-            className="w-full border rounded px-3 py-2 text-sm bg-gray-50"
+            value={data.slug}
+            onChange={(e) => setData({ ...data, slug: e.target.value })}
+            required
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900/10"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Category</label>
           <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as Category)}
-            className="w-full border rounded px-3 py-2 text-sm"
+            value={data.category}
+            onChange={(e) => setData({ ...data, category: e.target.value as Category })}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
           >
             <option value="PRESS_RELEASE">Press Release</option>
             <option value="BLOG">Blog</option>
@@ -125,9 +188,9 @@ export default function EditInsightPage() {
         <div>
           <label className="block text-sm font-medium mb-1">Status</label>
           <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as Status)}
-            className="w-full border rounded px-3 py-2 text-sm"
+            value={data.status}
+            onChange={(e) => setData({ ...data, status: e.target.value as Status })}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
           >
             <option value="DRAFT">Draft</option>
             <option value="PUBLISHED">Published</option>
@@ -137,36 +200,62 @@ export default function EditInsightPage() {
         <div>
           <label className="block text-sm font-medium mb-1">Excerpt</label>
           <textarea
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
+            value={data.excerpt}
+            onChange={(e) => setData({ ...data, excerpt: e.target.value })}
             rows={3}
-            className="w-full border rounded px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900/10"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1">Content</label>
           <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
+            value={data.content}
+            onChange={(e) => setData({ ...data, content: e.target.value })}
             rows={10}
-            className="w-full border rounded px-3 py-2 text-sm font-mono"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900/10"
           />
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="space-y-3">
+          <label className="block text-sm font-medium">Cover Image</label>
+
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleUpload(f);
+            }}
+            className="block w-full text-sm"
+          />
+
+          <div className="text-xs text-gray-500">
+            {uploading ? "Uploading..." : data.coverImage ? "Current ✅" : "No image yet"}
+          </div>
+
+          {data.coverImage && (
+            <img
+              src={data.coverImage}
+              alt="Cover preview"
+              className="w-full max-h-64 object-cover rounded-lg border"
+            />
+          )}
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 text-sm border rounded"
+            className="text-sm text-gray-600 hover:underline"
           >
             Cancel
           </button>
 
           <button
             type="submit"
-            disabled={saving}
-            className="px-5 py-2 text-sm rounded bg-gray-900 text-white"
+            disabled={saving || uploading}
+            className="rounded-md bg-gray-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 transition disabled:opacity-50"
           >
             {saving ? "Saving…" : "Update Insight"}
           </button>
