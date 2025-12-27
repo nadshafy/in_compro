@@ -149,10 +149,10 @@ export default function HomePage() {
               </p>
 
               <ul style={{ marginTop: 24 }} className="focus-list">
-                <li>Disciplined capital allocation and project evaluation</li>
-                <li>Strong emphasis on safety, compliance, and risk management</li>
-                <li>Integration of ESG principles into operational decision-making</li>
-                <li>Long-term partnerships with host communities and regulators</li>
+                <li>1. Disciplined capital allocation and project evaluation</li>
+                <li>2. Strong emphasis on safety, compliance, and risk management</li>
+                <li>3. Integration of ESG principles into operational decision-making</li>
+                <li>4. Long-term partnerships with host communities and regulators</li>
               </ul>
             </div>
 
