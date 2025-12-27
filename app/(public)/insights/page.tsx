@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { Prisma, InsightCategory } from "@prisma/client";
+import { Suspense } from "react";
 import InsightsFilter from "./InsightsFilter";
 
 export const metadata: Metadata = {
@@ -22,7 +23,6 @@ export default async function InsightsPage({
   };
 }) {
   const { page, q, category } = searchParams;
-
   const currentPage = Math.max(Number(page) || 1, 1);
 
   const where: Prisma.InsightWhereInput = {
@@ -67,7 +67,9 @@ export default async function InsightsPage({
     <section className="mx-auto max-w-6xl px-4 py-16">
       <h1 className="text-4xl font-bold mb-6">Insights & News</h1>
 
-      <InsightsFilter />
+      <Suspense fallback={<InsightsFilterSkeleton />}>
+        <InsightsFilter />
+      </Suspense>
 
       {/* LIST */}
       {insights.length === 0 ? (
@@ -144,5 +146,15 @@ export default async function InsightsPage({
         </div>
       )}
     </section>
+  );
+}
+
+function InsightsFilterSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 md:flex-row md:items-center animate-pulse">
+      <div className="h-10 w-full md:w-1/2 rounded bg-gray-200" />
+      <div className="h-10 w-full md:w-56 rounded bg-gray-200" />
+      <div className="h-10 w-28 rounded bg-gray-200" />
+    </div>
   );
 }
