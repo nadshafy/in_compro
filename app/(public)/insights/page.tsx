@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { Prisma, InsightCategory } from "@prisma/client";
+import InsightsFilter from "./InsightsFilter";
 
 export const metadata: Metadata = {
   title: "Insights & News",
@@ -8,24 +10,54 @@ export const metadata: Metadata = {
     "Latest press releases, corporate news, and insights from Innocent Resources Corporation Limited.",
 };
 
+const PAGE_SIZE = 6;
+
 export default async function InsightsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: {
+    page?: string;
+    q?: string;
+    category?: string;
+  };
 }) {
-  const { page } = await searchParams;
+  const { page, q, category } = searchParams;
 
-  const PAGE_SIZE = 6;
   const currentPage = Math.max(Number(page) || 1, 1);
 
-  const totalCount = await prisma.insight.count({
-    where: { status: "PUBLISHED" },
-  });
+  const where: Prisma.InsightWhereInput = {
+    status: "PUBLISHED",
+  };
 
+  if (q) {
+    where.OR = [
+      {
+        title: {
+          contains: q,
+          mode: Prisma.QueryMode.insensitive,
+        },
+      },
+      {
+        excerpt: {
+          contains: q,
+          mode: Prisma.QueryMode.insensitive,
+        },
+      },
+    ];
+  }
+
+  if (
+    category &&
+    Object.values(InsightCategory).includes(category as InsightCategory)
+  ) {
+    where.category = category as InsightCategory;
+  }
+
+  const totalCount = await prisma.insight.count({ where });
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const insights = await prisma.insight.findMany({
-    where: { status: "PUBLISHED" },
+    where,
     orderBy: { createdAt: "desc" },
     skip: (currentPage - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
@@ -33,13 +65,15 @@ export default async function InsightsPage({
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
-      <h1 className="text-4xl font-bold mb-10">Insights & News</h1>
+      <h1 className="text-4xl font-bold mb-6">Insights & News</h1>
+
+      <InsightsFilter />
 
       {/* LIST */}
       {insights.length === 0 ? (
-        <p>No insights found.</p>
+        <p className="mt-10 text-gray-500">No insights found.</p>
       ) : (
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 mt-10">
           {insights.map((item) => (
             <article
               key={item.id}
@@ -54,16 +88,24 @@ export default async function InsightsPage({
               )}
 
               <div className="p-5">
+                {/* CATEGORY */}
+                <p className="mb-1 text-xs font-semibold uppercase text-red-600">
+                  {item.category.replace("_", " ")}
+                </p>
+
+                {/* TITLE */}
                 <h2 className="text-xl font-semibold mb-2">
                   <Link href={`/insights/${item.slug}`}>
                     {item.title}
                   </Link>
                 </h2>
 
+                {/* DATE */}
                 <p className="text-sm text-gray-600 mb-4">
                   {new Date(item.createdAt).toLocaleDateString()}
                 </p>
 
+                {/* EXCERPT */}
                 <p className="text-gray-700 line-clamp-3">
                   {item.excerpt}
                 </p>
@@ -75,15 +117,20 @@ export default async function InsightsPage({
 
       {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-12">
+        <div className="flex justify-center gap-2 mt-12 flex-wrap">
           {Array.from({ length: totalPages }).map((_, i) => {
             const pageNum = i + 1;
             const isActive = pageNum === currentPage;
 
+            const params = new URLSearchParams();
+            params.set("page", String(pageNum));
+            if (q) params.set("q", q);
+            if (category) params.set("category", category);
+
             return (
               <Link
                 key={pageNum}
-                href={`/insights?page=${pageNum}`}
+                href={`/insights?${params.toString()}`}
                 className={`px-4 py-2 border rounded ${
                   isActive
                     ? "bg-black text-white"
